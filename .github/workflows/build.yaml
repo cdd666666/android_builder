@@ -2,6 +2,15 @@ name: android_build
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - debug
+        - release
 
 jobs:
   build:
@@ -11,12 +20,18 @@ jobs:
     - name: Checkout the code
       uses: actions/checkout@v4
       
-    # 如果需要设置 Android SDK，需要专门的 action
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
         api-level: 33
         build-tools: 33.0.2
+        ndk-version: '25.1.8937393'
         
     - name: Get project name
       id: get-project
@@ -26,14 +41,30 @@ jobs:
       run: |
         git clone --depth=1 "${{ steps.get-project.outputs.PROJECT }}" project
         
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          project/.gradle
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
+          
     - name: Build APK
       working-directory: ./project
       run: |
         chmod +x gradlew
-        ./gradlew assembleDebug --stacktrace
+        ./gradlew assemble${{ github.event.inputs.build_type }} --stacktrace
+        
+    - name: Verify APK files
+      run: |
+        echo "Generated APK files:"
+        find ./project -name "*.apk" -type f
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: my-build-apk
+        name: android-apk
         path: ./project/**/*.apk
