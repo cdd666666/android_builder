@@ -2,15 +2,6 @@ name: android_build
 
 on:
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'Build type'
-        required: true
-        default: 'debug'
-        type: choice
-        options:
-        - debug
-        - release
 
 jobs:
   build:
@@ -28,10 +19,14 @@ jobs:
         
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+      # 使用正确的参数名
       with:
-        api-level: 33
-        build-tools: 33.0.2
-        ndk-version: '25.1.8937393'
+        packages: |
+          platform-tools
+          platforms;android-33
+          build-tools;33.0.2
+          ndk;25.1.8937393
+        accept-android-sdk-licenses: true
         
     - name: Get project name
       id: get-project
@@ -56,7 +51,7 @@ jobs:
       working-directory: ./project
       run: |
         chmod +x gradlew
-        ./gradlew assemble${{ github.event.inputs.build_type }} --stacktrace
+        ./gradlew assembleDebug --stacktrace
         
     - name: Verify APK files
       run: |
