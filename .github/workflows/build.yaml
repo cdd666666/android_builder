@@ -1,4 +1,4 @@
-name: android_build_direct
+name: android_build_fixed
 
 on:
   workflow_dispatch:
@@ -15,29 +15,33 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: '17'
+        distribution: 'temurin'
         
+    # 使用 Google 官方推荐的 action
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android-sdk@v2.0.0
       with:
-        packages: |
-          platform-tools
-          platforms;android-33
-          build-tools;33.0.2
-        accept-android-sdk-licenses: true
+        api-level: 33
+        build-tools: 33.0.2
+        ndk-version: 25.1.8937393
         
-    - name: Debug - Direct test
+    - name: Get project name
+      id: get-project
+      run: echo "PROJECT=$(cat project-to-build)" >> $GITHUB_OUTPUT
+      
+    - name: Clone project
       run: |
-        echo "=== 直接测试 ==="
-        pwd
-        ls -la
+        git clone --depth=1 "${{ steps.get-project.outputs.PROJECT }}" project
         
-    - name: Direct build (不克隆)
+    - name: Build APK
+      working-directory: ./project
       run: |
-        echo "=== 直接构建当前项目 ==="
-        if [ -f gradlew ]; then
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-        else
-          echo "当前目录没有 gradlew 文件"
-          find . -name "gradlew" -type f
-        fi
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: ./project/**/*.apk
+        
